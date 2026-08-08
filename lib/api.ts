@@ -35,6 +35,23 @@ export interface UserProfile {
   career_interest: string | null;
 }
 
+export interface Resume {
+  id: number;
+  filename: string;
+  uploaded_at: string;
+  extracted_text: string | null;
+}
+
+export interface ResumeAnalysis {
+  ats_score: number;
+  strengths: string[];
+  weaknesses: string[];
+  missing_sections: string[];
+  keyword_suggestions: string[];
+  formatting_issues: string[];
+  summary: string;
+}
+
 // Stores the JWT in localStorage. Simple approach for now - fine for a college project,
 // though a production app would typically use httpOnly cookies instead.
 export function saveToken(token: string) {
@@ -96,6 +113,33 @@ export async function getMe(): Promise<UserProfile> {
 
 export async function getDashboard(): Promise<DashboardData> {
   const res = await fetch(`${API_URL}/dashboard`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
+
+export async function uploadResume(file: File): Promise<Resume> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${API_URL}/resumes`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${getToken()}` }, // no Content-Type here - the browser sets the correct multipart boundary automatically
+    body: formData,
+  });
+  return handleResponse(res);
+}
+
+export async function listResumes(): Promise<Resume[]> {
+  const res = await fetch(`${API_URL}/resumes`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
+
+export async function analyzeResume(resumeId: number): Promise<ResumeAnalysis> {
+  const res = await fetch(`${API_URL}/resumes/${resumeId}/analyze`, {
+    method: "POST",
     headers: { Authorization: `Bearer ${getToken()}` },
   });
   return handleResponse(res);

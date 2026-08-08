@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { getDashboard, getMe, getToken, clearToken, DashboardData, UserProfile } from "@/lib/api";
 
 function StatCard({
@@ -111,6 +112,13 @@ export default function DashboardPage() {
             ? "Your profile is set up. Here's where things stand."
             : "Complete your profile to unlock personalized prep."}
         </p>
+
+        <Link
+          href="/resume"
+          className="inline-block bg-[#14213D] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#1F2E52] transition-colors mb-6"
+        >
+          Upload &amp; analyze resume →
+        </Link>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <StatCard
