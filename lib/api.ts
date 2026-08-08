@@ -118,6 +118,31 @@ export async function getDashboard(): Promise<DashboardData> {
   return handleResponse(res);
 }
 
+export interface JobPosting {
+  id: number;
+  title: string;
+  company_name: string;
+  description: string;
+  role: string | null;
+  required_skills: string[];
+  experience_summary: string | null;
+  created_at: string;
+}
+
+export interface SkillPrepTopic {
+  skill: string;
+  why_needed: string;
+  key_concepts: string[];
+}
+
+export interface SkillGap {
+  job_title: string;
+  role: string | null;
+  matching_skills: string[];
+  missing_skills: string[];
+  prep_topics: SkillPrepTopic[];
+}
+
 export async function uploadResume(file: File): Promise<Resume> {
   const formData = new FormData();
   formData.append("file", file);
@@ -140,6 +165,20 @@ export async function listResumes(): Promise<Resume[]> {
 export async function analyzeResume(resumeId: number): Promise<ResumeAnalysis> {
   const res = await fetch(`${API_URL}/resumes/${resumeId}/analyze`, {
     method: "POST",
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
+
+export async function listJobs(): Promise<JobPosting[]> {
+  const res = await fetch(`${API_URL}/jobs`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
+
+export async function getSkillGap(jobId: number): Promise<SkillGap> {
+  const res = await fetch(`${API_URL}/jobs/${jobId}/skill-gap`, {
     headers: { Authorization: `Bearer ${getToken()}` },
   });
   return handleResponse(res);

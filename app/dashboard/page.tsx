@@ -113,12 +113,20 @@ export default function DashboardPage() {
             : "Complete your profile to unlock personalized prep."}
         </p>
 
-        <Link
-          href="/resume"
-          className="inline-block bg-[#14213D] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#1F2E52] transition-colors mb-6"
-        >
-          Upload &amp; analyze resume →
-        </Link>
+        <div className="flex gap-3 mb-6">
+          <Link
+            href="/resume"
+            className="inline-block bg-[#14213D] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#1F2E52] transition-colors"
+          >
+            Upload &amp; analyze resume →
+          </Link>
+          <Link
+            href="/jobs"
+            className="inline-block bg-white text-[#14213D] text-sm font-medium px-4 py-2 rounded-lg border border-[#E5E7EB] hover:border-[#14213D] transition-colors"
+          >
+            Browse jobs &amp; skill gaps →
+          </Link>
+        </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <StatCard
