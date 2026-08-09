@@ -126,6 +126,18 @@ export default function DashboardPage() {
           >
             Browse jobs &amp; skill gaps →
           </Link>
+          <Link
+            href="/profile"
+            className="inline-block bg-white text-[#14213D] text-sm font-medium px-4 py-2 rounded-lg border border-[#E5E7EB] hover:border-[#14213D] transition-colors"
+          >
+            Edit profile →
+          </Link>
+          <Link
+            href="/interview"
+            className="inline-block bg-white text-[#14213D] text-sm font-medium px-4 py-2 rounded-lg border border-[#E5E7EB] hover:border-[#14213D] transition-colors"
+          >
+            Mock interview →
+          </Link>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

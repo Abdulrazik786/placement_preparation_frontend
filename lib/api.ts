@@ -111,6 +111,26 @@ export async function getMe(): Promise<UserProfile> {
   return handleResponse(res);
 }
 
+export interface ProfileUpdate {
+  skills?: string[];
+  projects?: { title: string; description: string; tech_stack: string[] }[];
+  certifications?: { name: string; issuer: string | null; year: number | null }[];
+  internships?: { role: string; company: string; duration: string | null; description: string | null }[];
+  career_interest?: string;
+}
+
+export async function updateProfile(profile: ProfileUpdate): Promise<UserProfile> {
+  const res = await fetch(`${API_URL}/me/profile`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getToken()}`,
+    },
+    body: JSON.stringify(profile),
+  });
+  return handleResponse(res);
+}
+
 export async function getDashboard(): Promise<DashboardData> {
   const res = await fetch(`${API_URL}/dashboard`, {
     headers: { Authorization: `Bearer ${getToken()}` },
@@ -164,6 +184,85 @@ export async function listResumes(): Promise<Resume[]> {
 
 export async function analyzeResume(resumeId: number): Promise<ResumeAnalysis> {
   const res = await fetch(`${API_URL}/resumes/${resumeId}/analyze`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
+
+export interface InterviewQuestion {
+  session_id: number;
+  question_text: string;
+  question_type: string;
+  status: string;
+}
+
+export interface InterviewMessage {
+  id: number;
+  sender: string;
+  content: string;
+  question_type: string | null;
+  created_at: string;
+}
+
+export interface InterviewSession {
+  id: number;
+  status: string;
+  created_at: string;
+  completed_at: string | null;
+  messages: InterviewMessage[];
+}
+
+export interface InterviewEvaluation {
+  overall_score: number;
+  technical_score: number;
+  resume_score: number;
+  project_score: number;
+  communication_score: number;
+  strong_areas: string[];
+  needs_preparation: string[];
+  question_feedback: { question: string; feedback: string }[];
+  summary: string;
+}
+
+export async function startInterview(jobId?: number, resumeId?: number): Promise<InterviewQuestion> {
+  const res = await fetch(`${API_URL}/interviews/start`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getToken()}`,
+    },
+    body: JSON.stringify({ job_id: jobId ?? null, resume_id: resumeId ?? null }),
+  });
+  return handleResponse(res);
+}
+
+export async function respondToInterview(
+  sessionId: number,
+  answer: string,
+  endInterview = false
+): Promise<InterviewQuestion> {
+  const res = await fetch(`${API_URL}/interviews/${sessionId}/respond`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getToken()}`,
+    },
+    body: JSON.stringify({ answer, end_interview: endInterview }),
+  });
+  return handleResponse(res);
+}
+
+export async function endInterview(sessionId: number): Promise<InterviewSession> {
+  const res = await fetch(`${API_URL}/interviews/${sessionId}/end`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
+
+export async function evaluateInterview(sessionId: number): Promise<InterviewEvaluation> {
+  const res = await fetch(`${API_URL}/interviews/${sessionId}/evaluate`, {
     method: "POST",
     headers: { Authorization: `Bearer ${getToken()}` },
   });
