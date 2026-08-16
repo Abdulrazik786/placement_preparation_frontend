@@ -8,8 +8,14 @@ import {
   uploadResume,
   listResumes,
   analyzeResume,
+  generateResume,
+  updateGeneratedResume,
+  downloadResumeExport,
+  listJobs,
   Resume,
   ResumeAnalysis,
+  GeneratedResume,
+  JobPosting,
 } from "@/lib/api";
 
 function ScoreRing({ score }: { score: number }) {
@@ -71,12 +77,23 @@ export default function ResumePage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Generate-from-scratch state
+  const [jobs, setJobs] = useState<JobPosting[]>([]);
+  const [selectedJobIdForGen, setSelectedJobIdForGen] = useState<string>("");
+  const [generating, setGenerating] = useState(false);
+  const [generatedResume, setGeneratedResume] = useState<GeneratedResume | null>(null);
+  const [editedText, setEditedText] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [savedEdit, setSavedEdit] = useState(false);
+  const [downloading, setDownloading] = useState<"pdf" | "docx" | null>(null);
+
   useEffect(() => {
     if (!getToken()) {
       router.push("/login");
       return;
     }
     loadResumes();
+    listJobs().catch(() => {}).then((data) => data && setJobs(data));
   }, [router]);
 
   async function loadResumes() {
@@ -121,6 +138,55 @@ export default function ResumePage() {
       setError(err instanceof Error ? err.message : "Analysis failed");
     } finally {
       setAnalyzing(false);
+    }
+  }
+
+  async function handleGenerate() {
+    setError(null);
+    setGenerating(true);
+    setGeneratedResume(null);
+    setSavedEdit(false);
+    try {
+      const jobId = selectedJobIdForGen ? parseInt(selectedJobIdForGen, 10) : undefined;
+      const result = await generateResume(jobId);
+      setGeneratedResume(result);
+      setEditedText(result.resume_text);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Resume generation failed");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function handleSaveEdit() {
+    if (!generatedResume) return;
+    setError(null);
+    setSavingEdit(true);
+    setSavedEdit(false);
+    try {
+      const updated = await updateGeneratedResume(generatedResume.id, editedText);
+      setGeneratedResume(updated);
+      setSavedEdit(true);
+      setTimeout(() => setSavedEdit(false), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save changes");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function handleDownload(format: "pdf" | "docx") {
+    if (!generatedResume) return;
+    setError(null);
+    setDownloading(format);
+    try {
+      // Downloads always reflect the last SAVED version - if you've edited the text,
+      // save it first so the download matches what you see in the editor.
+      await downloadResumeExport("generated", generatedResume.id, format);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Download failed");
+    } finally {
+      setDownloading(null);
     }
   }
 
@@ -238,6 +304,79 @@ export default function ResumePage() {
             </div>
           </div>
         )}
+
+        {/* Generate a resume from scratch */}
+        <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 mt-6">
+          <h2 className="text-sm font-semibold text-[#14213D] mb-1">Create a resume from scratch</h2>
+          <p className="text-xs text-[#6B7280] mb-3">
+            Built entirely from your saved profile (skills, projects, certifications, internships). Make sure
+            your profile is filled in first.
+          </p>
+          <div className="flex flex-col md:flex-row gap-2 mb-2">
+            <select
+              value={selectedJobIdForGen}
+              onChange={(e) => setSelectedJobIdForGen(e.target.value)}
+              className="flex-1 px-3 py-2 border border-[#E5E7EB] rounded-lg text-sm text-[#14213D] focus:outline-none focus:ring-2 focus:ring-[#14213D]"
+            >
+              <option value="">General resume (no specific job)</option>
+              {jobs.map((job) => (
+                <option key={job.id} value={job.id}>
+                  {job.title} · {job.company_name}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              className="bg-[#14213D] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#1F2E52] transition-colors disabled:opacity-60 whitespace-nowrap"
+            >
+              {generating ? "Generating..." : "Generate resume"}
+            </button>
+          </div>
+
+          {generatedResume && (
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold text-[#6B7280] uppercase tracking-wide">
+                  Edit before downloading
+                </label>
+                {savedEdit && <span className="text-xs text-[#2A9D8F] font-medium">Saved ✓</span>}
+              </div>
+              <textarea
+                value={editedText}
+                onChange={(e) => setEditedText(e.target.value)}
+                rows={16}
+                className="w-full px-3 py-3 border border-[#E5E7EB] rounded-lg text-sm text-[#14213D] font-mono focus:outline-none focus:ring-2 focus:ring-[#14213D]"
+              />
+              <div className="flex flex-wrap gap-2 mt-3">
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={savingEdit}
+                  className="text-sm font-medium text-[#14213D] border border-[#14213D] px-4 py-2 rounded-lg hover:bg-[#14213D] hover:text-white transition-colors disabled:opacity-50"
+                >
+                  {savingEdit ? "Saving..." : "Save changes"}
+                </button>
+                <button
+                  onClick={() => handleDownload("pdf")}
+                  disabled={downloading !== null}
+                  className="text-sm font-medium text-white bg-[#FFB703] px-4 py-2 rounded-lg hover:bg-[#FFC933] transition-colors disabled:opacity-50"
+                >
+                  {downloading === "pdf" ? "Downloading..." : "Download PDF"}
+                </button>
+                <button
+                  onClick={() => handleDownload("docx")}
+                  disabled={downloading !== null}
+                  className="text-sm font-medium text-white bg-[#FFB703] px-4 py-2 rounded-lg hover:bg-[#FFC933] transition-colors disabled:opacity-50"
+                >
+                  {downloading === "docx" ? "Downloading..." : "Download DOCX"}
+                </button>
+              </div>
+              <p className="text-xs text-[#6B7280] mt-2">
+                Downloads use the last saved version — click &quot;Save changes&quot; after editing, before downloading.
+              </p>
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );

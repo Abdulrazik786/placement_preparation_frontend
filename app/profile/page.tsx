@@ -94,6 +94,12 @@ export default function ProfilePage() {
 
   const [skills, setSkills] = useState<string[]>([]);
   const [careerInterest, setCareerInterest] = useState("");
+  const [phone, setPhone] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [githubUrl, setGithubUrl] = useState("");
+  const [branch, setBranch] = useState("");
+  const [graduationYear, setGraduationYear] = useState("");
+  const [cgpa, setCgpa] = useState("");
   const [projects, setProjects] = useState<Project[]>([]);
   const [certifications, setCertifications] = useState<Certification[]>([]);
   const [internships, setInternships] = useState<Internship[]>([]);
@@ -107,6 +113,12 @@ export default function ProfilePage() {
       .then((data: UserProfile) => {
         setSkills(data.skills || []);
         setCareerInterest(data.career_interest || "");
+        setPhone(data.phone || "");
+        setLinkedinUrl(data.linkedin_url || "");
+        setGithubUrl(data.github_url || "");
+        setBranch(data.branch || "");
+        setGraduationYear(data.graduation_year ? String(data.graduation_year) : "");
+        setCgpa(data.cgpa !== null && data.cgpa !== undefined ? String(data.cgpa) : "");
         setProjects(
           (data.projects || []).map((p) => ({
             title: p.title,
@@ -178,6 +190,12 @@ export default function ProfilePage() {
       await updateProfile({
         skills,
         career_interest: careerInterest,
+        phone,
+        linkedin_url: linkedinUrl,
+        github_url: githubUrl,
+        branch,
+        graduation_year: graduationYear ? parseInt(graduationYear, 10) : undefined,
+        cgpa: cgpa ? parseFloat(cgpa) : undefined,
         projects: projects
           .filter((p) => p.title.trim())
           .map((p) => ({ title: p.title, description: p.description, tech_stack: p.tech_stack })),
@@ -232,6 +250,70 @@ export default function ProfilePage() {
             {error}
           </p>
         )}
+
+        {/* Contact information - used on the resume header */}
+        <div className="bg-white rounded-xl border border-[#E5E7EB] p-5">
+          <h2 className="text-sm font-semibold text-[#14213D] mb-1">Contact information</h2>
+          <p className="text-xs text-[#6B7280] mb-3">
+            Shown on your generated resume. Leave any field blank to skip it.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <input
+              type="text"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="Phone number"
+              className="px-3 py-2 border border-[#E5E7EB] rounded-lg text-sm text-[#14213D] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#14213D]"
+            />
+            <input
+              type="text"
+              value={linkedinUrl}
+              onChange={(e) => setLinkedinUrl(e.target.value)}
+              placeholder="LinkedIn URL"
+              className="px-3 py-2 border border-[#E5E7EB] rounded-lg text-sm text-[#14213D] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#14213D]"
+            />
+            <input
+              type="text"
+              value={githubUrl}
+              onChange={(e) => setGithubUrl(e.target.value)}
+              placeholder="GitHub URL"
+              className="px-3 py-2 border border-[#E5E7EB] rounded-lg text-sm text-[#14213D] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#14213D]"
+            />
+          </div>
+        </div>
+
+        {/* Education - required for the resume's Education section to generate properly */}
+        <div className="bg-white rounded-xl border border-[#E5E7EB] p-5">
+          <h2 className="text-sm font-semibold text-[#14213D] mb-1">Education</h2>
+          <p className="text-xs text-[#6B7280] mb-3">
+            Needed so your generated resume includes a proper Education section.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <input
+              type="text"
+              value={branch}
+              onChange={(e) => setBranch(e.target.value)}
+              placeholder="Branch (e.g. AIML, CSE)"
+              className="px-3 py-2 border border-[#E5E7EB] rounded-lg text-sm text-[#14213D] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#14213D]"
+            />
+            <input
+              type="text"
+              inputMode="numeric"
+              value={graduationYear}
+              onChange={(e) => setGraduationYear(e.target.value)}
+              placeholder="Graduation year (e.g. 2027)"
+              className="px-3 py-2 border border-[#E5E7EB] rounded-lg text-sm text-[#14213D] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#14213D]"
+            />
+            <input
+              type="text"
+              inputMode="decimal"
+              value={cgpa}
+              onChange={(e) => setCgpa(e.target.value)}
+              placeholder="CGPA (e.g. 7.35)"
+              className="px-3 py-2 border border-[#E5E7EB] rounded-lg text-sm text-[#14213D] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#14213D]"
+            />
+          </div>
+        </div>
 
         {/* Career interest */}
         <div className="bg-white rounded-xl border border-[#E5E7EB] p-5">

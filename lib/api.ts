@@ -33,6 +33,9 @@ export interface UserProfile {
   certifications: { name: string; issuer: string | null; year: number | null }[];
   internships: { role: string; company: string; duration: string | null; description: string | null }[];
   career_interest: string | null;
+  phone: string | null;
+  linkedin_url: string | null;
+  github_url: string | null;
 }
 
 export interface Resume {
@@ -117,6 +120,12 @@ export interface ProfileUpdate {
   certifications?: { name: string; issuer: string | null; year: number | null }[];
   internships?: { role: string; company: string; duration: string | null; description: string | null }[];
   career_interest?: string;
+  phone?: string;
+  linkedin_url?: string;
+  github_url?: string;
+  branch?: string;
+  graduation_year?: number;
+  cgpa?: number;
 }
 
 export async function updateProfile(profile: ProfileUpdate): Promise<UserProfile> {
@@ -161,6 +170,102 @@ export interface SkillGap {
   matching_skills: string[];
   missing_skills: string[];
   prep_topics: SkillPrepTopic[];
+}
+
+export interface GeneratedResume {
+  id: number;
+  resume_text: string;
+  created_at: string;
+}
+
+export interface TailoredResume {
+  id: number;
+  tailored_text: string;
+  changes_summary: string[];
+  created_at: string;
+}
+
+export async function generateResume(jobId?: number): Promise<GeneratedResume> {
+  const res = await fetch(`${API_URL}/resumes/generate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getToken()}`,
+    },
+    body: JSON.stringify({ job_id: jobId ?? null }),
+  });
+  return handleResponse(res);
+}
+
+export async function listGeneratedResumes(): Promise<GeneratedResume[]> {
+  const res = await fetch(`${API_URL}/resumes/generated`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
+
+export async function updateGeneratedResume(resumeId: number, resumeText: string): Promise<GeneratedResume> {
+  const res = await fetch(`${API_URL}/resumes/generated/${resumeId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getToken()}`,
+    },
+    body: JSON.stringify({ resume_text: resumeText }),
+  });
+  return handleResponse(res);
+}
+
+export async function updateTailoredResume(tailoredId: number, resumeText: string): Promise<TailoredResume> {
+  const res = await fetch(`${API_URL}/tailored-resumes/${tailoredId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getToken()}`,
+    },
+    body: JSON.stringify({ resume_text: resumeText }),
+  });
+  return handleResponse(res);
+}
+
+export async function tailorResume(resumeId: number, jobId: number): Promise<TailoredResume> {
+  const res = await fetch(`${API_URL}/resumes/${resumeId}/tailor/${jobId}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
+
+export async function listTailoredResumes(): Promise<TailoredResume[]> {
+  const res = await fetch(`${API_URL}/tailored-resumes`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
+
+// Downloads a generated or tailored resume as PDF/DOCX. Uses fetch (not a plain <a href>) because
+// the export endpoint requires the Authorization header, which a plain link can't send.
+export async function downloadResumeExport(
+  kind: "generated" | "tailored",
+  id: number,
+  format: "pdf" | "docx"
+): Promise<void> {
+  const path = kind === "generated" ? `/resumes/generated/${id}/export` : `/tailored-resumes/${id}/export`;
+  const res = await fetch(`${API_URL}${path}?format=${format}`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) {
+    throw new Error("Download failed. Please try again.");
+  }
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `resume_${id}.${format}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
 }
 
 export async function uploadResume(file: File): Promise<Resume> {
