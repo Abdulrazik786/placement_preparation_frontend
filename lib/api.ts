@@ -381,6 +381,19 @@ export async function listJobs(): Promise<JobPosting[]> {
   return handleResponse(res);
 }
 
+export async function createJob(title: string, companyName: string, description: string): Promise<JobPosting> {
+  const res = await fetch(`${API_URL}/jobs`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getToken()}`,
+    },
+    // required_skills intentionally omitted - the backend auto-extracts role/skills/experience via AI
+    body: JSON.stringify({ title, company_name: companyName, description }),
+  });
+  return handleResponse(res);
+}
+
 export async function getSkillGap(jobId: number): Promise<SkillGap> {
   const res = await fetch(`${API_URL}/jobs/${jobId}/skill-gap`, {
     headers: { Authorization: `Bearer ${getToken()}` },

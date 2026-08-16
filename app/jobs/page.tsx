@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { getToken, listJobs, getSkillGap, JobPosting, SkillGap } from "@/lib/api";
+import { getToken, listJobs, createJob, getSkillGap, JobPosting, SkillGap } from "@/lib/api";
 
 export default function JobsPage() {
   const router = useRouter();
@@ -13,6 +13,13 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(true);
   const [gapLoading, setGapLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Add-your-own-job form state
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newCompany, setNewCompany] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     if (!getToken()) {
@@ -40,6 +47,28 @@ export default function JobsPage() {
     }
   }
 
+  async function handleAddJob(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newTitle.trim() || !newCompany.trim() || !newDescription.trim()) return;
+
+    setError(null);
+    setAdding(true);
+    try {
+      // AI auto-extracts role, required skills, and experience summary from the description alone
+      const created = await createJob(newTitle.trim(), newCompany.trim(), newDescription.trim());
+      setJobs((prev) => [created, ...prev]);
+      setNewTitle("");
+      setNewCompany("");
+      setNewDescription("");
+      setShowAddForm(false);
+      await handleSelectJob(created); // jump straight to its skill-gap analysis
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add job");
+    } finally {
+      setAdding(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F7F8FA] flex items-center justify-center">
@@ -61,10 +90,60 @@ export default function JobsPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8">
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-sm text-[#6B7280]">
+            Paste any job description to check your skill gap against it — no need to wait for your TPO to add it.
+          </p>
+          <button
+            onClick={() => setShowAddForm((v) => !v)}
+            className="text-sm font-medium text-white bg-[#14213D] px-4 py-2 rounded-lg hover:bg-[#1F2E52] transition-colors whitespace-nowrap"
+          >
+            {showAddForm ? "Cancel" : "+ Add a job"}
+          </button>
+        </div>
+
+        {showAddForm && (
+          <form onSubmit={handleAddJob} className="bg-white rounded-xl border border-[#E5E7EB] p-5 mb-6 space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input
+                type="text"
+                required
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="Job title (e.g. Machine Learning Engineer)"
+                className="px-3 py-2 border border-[#E5E7EB] rounded-lg text-sm text-[#14213D] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#14213D]"
+              />
+              <input
+                type="text"
+                required
+                value={newCompany}
+                onChange={(e) => setNewCompany(e.target.value)}
+                placeholder="Company name"
+                className="px-3 py-2 border border-[#E5E7EB] rounded-lg text-sm text-[#14213D] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#14213D]"
+              />
+            </div>
+            <textarea
+              required
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              placeholder="Paste the full job description here..."
+              rows={6}
+              className="w-full px-3 py-2 border border-[#E5E7EB] rounded-lg text-sm text-[#14213D] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#14213D]"
+            />
+            <button
+              type="submit"
+              disabled={adding}
+              className="text-sm font-medium text-white bg-[#FFB703] px-4 py-2 rounded-lg hover:bg-[#FFC933] transition-colors disabled:opacity-60"
+            >
+              {adding ? "Adding & analyzing..." : "Add job and check skill gap"}
+            </button>
+          </form>
+        )}
+
         {jobs.length === 0 ? (
           <div className="bg-white rounded-xl border border-dashed border-[#D1D5DB] p-8 text-center">
             <p className="text-sm text-[#6B7280]">
-              No job postings yet. Ask your TPO to add some, or add one via the API for testing.
+              No job postings yet. Click &quot;+ Add a job&quot; above to paste one in.
             </p>
           </div>
         ) : (
