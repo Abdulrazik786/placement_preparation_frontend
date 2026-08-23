@@ -10,6 +10,7 @@ import {
   respondToInterview,
   endInterview,
   evaluateInterview,
+  getSuggestedAnswer,
   JobPosting,
   InterviewEvaluation,
 } from "@/lib/api";
@@ -53,6 +54,9 @@ export default function InterviewPage() {
   const [evaluation, setEvaluation] = useState<InterviewEvaluation | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [suggestion, setSuggestion] = useState<string | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
+  const [expandedFeedback, setExpandedFeedback] = useState<number | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -70,6 +74,7 @@ export default function InterviewPage() {
   async function handleStart() {
     setError(null);
     setLoading(true);
+    setSuggestion(null);
     try {
       const jobId = selectedJobId ? parseInt(selectedJobId, 10) : undefined;
       const result = await startInterview(jobId);
@@ -83,12 +88,27 @@ export default function InterviewPage() {
     }
   }
 
+  async function handleSuggestAnswer() {
+    if (!sessionId) return;
+    setError(null);
+    setSuggesting(true);
+    try {
+      const text = await getSuggestedAnswer(sessionId);
+      setSuggestion(text);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to get a suggested answer");
+    } finally {
+      setSuggesting(false);
+    }
+  }
+
   async function handleSend(endNow = false) {
     if (!sessionId || (!currentInput.trim() && !endNow)) return;
 
     const answerText = currentInput.trim() || "(ended interview)";
     setMessages((prev) => [...prev, { sender: "candidate", content: answerText }]);
     setCurrentInput("");
+    setSuggestion(null);
     setError(null);
     setLoading(true);
 
@@ -209,6 +229,21 @@ export default function InterviewPage() {
 
             {status === "in_progress" && (
               <div className="space-y-2">
+                {suggestion && (
+                  <div className="bg-[#FFF8E8] border border-[#FFB703] rounded-lg p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-[#B8860B] mb-1">
+                      Suggested answer
+                    </p>
+                    <p className="text-sm text-[#14213D]">{suggestion}</p>
+                  </div>
+                )}
+                <button
+                  onClick={handleSuggestAnswer}
+                  disabled={suggesting || loading}
+                  className="text-xs font-medium text-[#14213D] border border-[#E5E7EB] px-3 py-1.5 rounded-lg hover:border-[#FFB703] transition-colors disabled:opacity-50"
+                >
+                  {suggesting ? "Thinking of an answer..." : "💡 Suggest an answer"}
+                </button>
                 <textarea
                   value={currentInput}
                   onChange={(e) => setCurrentInput(e.target.value)}
@@ -271,7 +306,7 @@ export default function InterviewPage() {
 
             <p className="text-sm text-[#6B7280] mb-4">{evaluation.summary}</p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
               <div>
                 <h3 className="text-xs font-semibold text-[#6B7280] uppercase tracking-wide mb-2">Strong areas</h3>
                 <div className="flex flex-wrap gap-2">
@@ -295,6 +330,72 @@ export default function InterviewPage() {
                 </div>
               </div>
             </div>
+
+            {evaluation.question_feedback.length > 0 && (
+              <div>
+                <h3 className="text-xs font-semibold text-[#6B7280] uppercase tracking-wide mb-2">
+                  Question-by-question breakdown
+                </h3>
+                <div className="space-y-2">
+                  {evaluation.question_feedback.map((qf, i) => (
+                    <div key={i} className="border border-[#E5E7EB] rounded-lg overflow-hidden">
+                      <button
+                        onClick={() => setExpandedFeedback(expandedFeedback === i ? null : i)}
+                        className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-[#F7F8FA] transition-colors"
+                      >
+                        <span className="text-sm text-[#14213D] font-medium pr-4">{qf.question}</span>
+                        <span className="text-xs text-[#6B7280] whitespace-nowrap">
+                          {expandedFeedback === i ? "Hide ▲" : "View ▼"}
+                        </span>
+                      </button>
+
+                      {expandedFeedback === i && (
+                        <div className="px-4 pb-4 space-y-3 border-t border-[#E5E7EB] pt-3">
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-[#6B7280] mb-1">
+                              Your answer
+                            </p>
+                            <p className="text-sm text-[#14213D] bg-[#F7F8FA] rounded-lg px-3 py-2">{qf.answer}</p>
+                          </div>
+
+                          {qf.mistakes.length > 0 && (
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#E63946] mb-1">
+                                Mistakes found
+                              </p>
+                              <ul className="space-y-1">
+                                {qf.mistakes.map((m, j) => (
+                                  <li
+                                    key={j}
+                                    className="text-sm text-[#14213D] bg-[#FDECEE] rounded-lg px-3 py-2 flex gap-2"
+                                  >
+                                    <span className="text-[#E63946]">•</span>
+                                    <span>{m}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {qf.ideal_answer && (
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#2A9D8F] mb-1">
+                                Ideal answer
+                              </p>
+                              <p className="text-sm text-[#14213D] bg-[#E7F5F3] rounded-lg px-3 py-2">
+                                {qf.ideal_answer}
+                              </p>
+                            </div>
+                          )}
+
+                          <p className="text-xs text-[#6B7280] italic">{qf.feedback}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>

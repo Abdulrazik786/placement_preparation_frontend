@@ -138,6 +138,12 @@ export default function DashboardPage() {
           >
             Mock interview →
           </Link>
+          <Link
+            href="/aptitude"
+            className="inline-block bg-white text-[#14213D] text-sm font-medium px-4 py-2 rounded-lg border border-[#E5E7EB] hover:border-[#14213D] transition-colors"
+          >
+            Aptitude practice →
+          </Link>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

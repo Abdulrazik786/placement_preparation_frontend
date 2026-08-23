@@ -185,6 +185,54 @@ export interface TailoredResume {
   created_at: string;
 }
 
+export interface AptitudeQuestion {
+  id: number;
+  topic: string;
+  difficulty: string;
+  question_text: string;
+  options: string[];
+}
+
+export interface AptitudeAnswerResult {
+  is_correct: boolean;
+  correct_answer: string;
+  explanation: string;
+}
+
+export async function getAptitudeTopics(): Promise<Record<string, string[]>> {
+  const res = await fetch(`${API_URL}/aptitude/topics`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
+
+export async function generateAptitudeQuestion(topic: string, difficulty: string): Promise<AptitudeQuestion> {
+  const res = await fetch(`${API_URL}/aptitude/questions/generate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getToken()}`,
+    },
+    body: JSON.stringify({ topic, difficulty }),
+  });
+  return handleResponse(res);
+}
+
+export async function answerAptitudeQuestion(
+  questionId: number,
+  selectedAnswer: string
+): Promise<AptitudeAnswerResult> {
+  const res = await fetch(`${API_URL}/aptitude/questions/${questionId}/answer`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getToken()}`,
+    },
+    body: JSON.stringify({ selected_answer: selectedAnswer }),
+  });
+  return handleResponse(res);
+}
+
 export async function generateResume(jobId?: number): Promise<GeneratedResume> {
   const res = await fetch(`${API_URL}/resumes/generate`, {
     method: "POST",
@@ -318,6 +366,14 @@ export interface InterviewSession {
   messages: InterviewMessage[];
 }
 
+export interface InterviewQuestionFeedback {
+  question: string;
+  answer: string;
+  mistakes: string[];
+  ideal_answer: string;
+  feedback: string;
+}
+
 export interface InterviewEvaluation {
   overall_score: number;
   technical_score: number;
@@ -326,8 +382,16 @@ export interface InterviewEvaluation {
   communication_score: number;
   strong_areas: string[];
   needs_preparation: string[];
-  question_feedback: { question: string; feedback: string }[];
+  question_feedback: InterviewQuestionFeedback[];
   summary: string;
+}
+
+export async function getSuggestedAnswer(sessionId: number): Promise<string> {
+  const res = await fetch(`${API_URL}/interviews/${sessionId}/suggested-answer`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  const data = await handleResponse<{ suggested_answer: string }>(res);
+  return data.suggested_answer;
 }
 
 export async function startInterview(jobId?: number, resumeId?: number): Promise<InterviewQuestion> {
