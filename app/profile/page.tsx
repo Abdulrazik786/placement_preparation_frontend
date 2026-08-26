@@ -93,6 +93,7 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false);
 
   const [skills, setSkills] = useState<string[]>([]);
+  const [name, setName] = useState("");
   const [careerInterest, setCareerInterest] = useState("");
   const [phone, setPhone] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
@@ -112,6 +113,7 @@ export default function ProfilePage() {
     getMe()
       .then((data: UserProfile) => {
         setSkills(data.skills || []);
+        setName(data.name || "");
         setCareerInterest(data.career_interest || "");
         setPhone(data.phone || "");
         setLinkedinUrl(data.linkedin_url || "");
@@ -188,6 +190,7 @@ export default function ProfilePage() {
     setSaving(true);
     try {
       await updateProfile({
+        name,
         skills,
         career_interest: careerInterest,
         phone,
@@ -250,6 +253,19 @@ export default function ProfilePage() {
             {error}
           </p>
         )}
+
+        {/* Basic info */}
+        <div className="bg-white rounded-xl border border-[#E5E7EB] p-5">
+          <h2 className="text-sm font-semibold text-[#14213D] mb-3">Basic info</h2>
+          <label className="block text-xs text-[#6B7280] mb-1">Full name</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Your full name"
+            className="w-full px-3 py-2 border border-[#E5E7EB] rounded-lg text-sm text-[#14213D] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#14213D]"
+          />
+        </div>
 
         {/* Contact information - used on the resume header */}
         <div className="bg-white rounded-xl border border-[#E5E7EB] p-5">

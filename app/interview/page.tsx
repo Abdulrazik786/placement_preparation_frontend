@@ -47,6 +47,7 @@ export default function InterviewPage() {
   const router = useRouter();
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string>("");
+  const [interviewType, setInterviewType] = useState("mixed");
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentInput, setCurrentInput] = useState("");
@@ -77,7 +78,7 @@ export default function InterviewPage() {
     setSuggestion(null);
     try {
       const jobId = selectedJobId ? parseInt(selectedJobId, 10) : undefined;
-      const result = await startInterview(jobId);
+      const result = await startInterview(jobId, undefined, interviewType);
       setSessionId(result.session_id);
       setMessages([{ sender: "interviewer", content: result.question_text, questionType: result.question_type }]);
       setStatus("in_progress");
@@ -180,7 +181,34 @@ export default function InterviewPage() {
         {status === "not_started" && (
           <div className="bg-white rounded-xl border border-[#E5E7EB] p-6">
             <h2 className="text-sm font-semibold text-[#14213D] mb-3">Start a mock interview</h2>
-            <label className="block text-xs text-[#6B7280] mb-1">Target job (optional)</label>
+
+            <label className="block text-xs text-[#6B7280] mb-2">Interview focus</label>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {[
+                { value: "mixed", label: "Full Mix", desc: "HR + Technical + Resume + Project" },
+                { value: "hr", label: "HR Interview", desc: "Behavioral & motivation questions" },
+                { value: "project", label: "Project-Based", desc: "Deep dive into your projects" },
+                { value: "jd", label: "JD-Based", desc: "Requires selecting a target job" },
+                { value: "resume", label: "Resume-Based", desc: "Questions about your skills" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setInterviewType(opt.value)}
+                  className={`text-left px-3 py-2.5 rounded-lg border transition-colors ${
+                    interviewType === opt.value
+                      ? "border-[#14213D] bg-[#F7F8FA]"
+                      : "border-[#E5E7EB] hover:border-[#9CA3AF]"
+                  }`}
+                >
+                  <p className="text-sm font-medium text-[#14213D]">{opt.label}</p>
+                  <p className="text-[11px] text-[#6B7280]">{opt.desc}</p>
+                </button>
+              ))}
+            </div>
+
+            <label className="block text-xs text-[#6B7280] mb-1">
+              Target job {interviewType === "jd" ? "(required for JD-Based)" : "(optional)"}
+            </label>
             <select
               value={selectedJobId}
               onChange={(e) => setSelectedJobId(e.target.value)}
@@ -193,9 +221,14 @@ export default function InterviewPage() {
                 </option>
               ))}
             </select>
+
+            {interviewType === "jd" && !selectedJobId && (
+              <p className="text-xs text-[#E63946] mb-3">Select a target job above to start a JD-Based interview.</p>
+            )}
+
             <button
               onClick={handleStart}
-              disabled={loading}
+              disabled={loading || (interviewType === "jd" && !selectedJobId)}
               className="w-full bg-[#14213D] text-white text-sm font-medium py-2.5 rounded-lg hover:bg-[#1F2E52] transition-colors disabled:opacity-60"
             >
               {loading ? "Starting..." : "Start interview"}

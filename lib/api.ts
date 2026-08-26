@@ -115,6 +115,7 @@ export async function getMe(): Promise<UserProfile> {
 }
 
 export interface ProfileUpdate {
+  name?: string;
   skills?: string[];
   projects?: { title: string; description: string; tech_stack: string[] }[];
   certifications?: { name: string; issuer: string | null; year: number | null }[];
@@ -348,6 +349,7 @@ export interface InterviewQuestion {
   question_text: string;
   question_type: string;
   status: string;
+  interview_type: string;
 }
 
 export interface InterviewMessage {
@@ -394,14 +396,18 @@ export async function getSuggestedAnswer(sessionId: number): Promise<string> {
   return data.suggested_answer;
 }
 
-export async function startInterview(jobId?: number, resumeId?: number): Promise<InterviewQuestion> {
+export async function startInterview(
+  jobId?: number,
+  resumeId?: number,
+  interviewType: string = "mixed"
+): Promise<InterviewQuestion> {
   const res = await fetch(`${API_URL}/interviews/start`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${getToken()}`,
     },
-    body: JSON.stringify({ job_id: jobId ?? null, resume_id: resumeId ?? null }),
+    body: JSON.stringify({ job_id: jobId ?? null, resume_id: resumeId ?? null, interview_type: interviewType }),
   });
   return handleResponse(res);
 }
