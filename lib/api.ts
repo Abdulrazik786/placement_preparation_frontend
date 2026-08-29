@@ -32,6 +32,7 @@ export interface UserProfile {
   projects: { title: string; description: string; tech_stack: string[] }[];
   certifications: { name: string; issuer: string | null; year: number | null }[];
   internships: { role: string; company: string; duration: string | null; description: string | null }[];
+  achievements: string[];
   career_interest: string | null;
   phone: string | null;
   linkedin_url: string | null;
@@ -120,6 +121,7 @@ export interface ProfileUpdate {
   projects?: { title: string; description: string; tech_stack: string[] }[];
   certifications?: { name: string; issuer: string | null; year: number | null }[];
   internships?: { role: string; company: string; duration: string | null; description: string | null }[];
+  achievements?: string[];
   career_interest?: string;
   phone?: string;
   linkedin_url?: string;
@@ -294,13 +296,26 @@ export async function listTailoredResumes(): Promise<TailoredResume[]> {
 
 // Downloads a generated or tailored resume as PDF/DOCX. Uses fetch (not a plain <a href>) because
 // the export endpoint requires the Authorization header, which a plain link can't send.
+export interface ResumeTemplate {
+  label: string;
+  description: string;
+}
+
+export async function getResumeTemplates(): Promise<Record<string, ResumeTemplate>> {
+  const res = await fetch(`${API_URL}/resumes/templates`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
+
 export async function downloadResumeExport(
   kind: "generated" | "tailored",
   id: number,
-  format: "pdf" | "docx"
+  format: "pdf" | "docx",
+  template: string = "modern"
 ): Promise<void> {
   const path = kind === "generated" ? `/resumes/generated/${id}/export` : `/tailored-resumes/${id}/export`;
-  const res = await fetch(`${API_URL}${path}?format=${format}`, {
+  const res = await fetch(`${API_URL}${path}?format=${format}&template=${template}`, {
     headers: { Authorization: `Bearer ${getToken()}` },
   });
   if (!res.ok) {
@@ -342,6 +357,58 @@ export async function analyzeResume(resumeId: number): Promise<ResumeAnalysis> {
     headers: { Authorization: `Bearer ${getToken()}` },
   });
   return handleResponse(res);
+}
+
+export interface ImprovedResume {
+  id: number;
+  resume_text: string;
+  changes_summary: string[];
+  ats_score_before: number;
+  ats_score_after: number;
+  created_at: string;
+}
+
+export async function improveResumeForAts(resumeId: number): Promise<ImprovedResume> {
+  const res = await fetch(`${API_URL}/resumes/${resumeId}/improve`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  return handleResponse(res);
+}
+
+export async function updateImprovedResume(improvedId: number, resumeText: string): Promise<ImprovedResume> {
+  const res = await fetch(`${API_URL}/resumes/improved/${improvedId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getToken()}`,
+    },
+    body: JSON.stringify({ resume_text: resumeText }),
+  });
+  return handleResponse(res);
+}
+
+export async function downloadImprovedResume(
+  improvedId: number,
+  format: "pdf" | "docx",
+  template: string = "modern"
+): Promise<void> {
+  const res = await fetch(
+    `${API_URL}/resumes/improved/${improvedId}/export?format=${format}&template=${template}`,
+    { headers: { Authorization: `Bearer ${getToken()}` } }
+  );
+  if (!res.ok) {
+    throw new Error("Download failed. Please try again.");
+  }
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `improved_resume_${improvedId}.${format}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
 }
 
 export interface InterviewQuestion {

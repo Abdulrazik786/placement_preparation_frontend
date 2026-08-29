@@ -93,6 +93,8 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false);
 
   const [skills, setSkills] = useState<string[]>([]);
+  const [achievements, setAchievements] = useState<string[]>([]);
+  const [achievementInput, setAchievementInput] = useState("");
   const [name, setName] = useState("");
   const [careerInterest, setCareerInterest] = useState("");
   const [phone, setPhone] = useState("");
@@ -113,6 +115,7 @@ export default function ProfilePage() {
     getMe()
       .then((data: UserProfile) => {
         setSkills(data.skills || []);
+        setAchievements(data.achievements || []);
         setName(data.name || "");
         setCareerInterest(data.career_interest || "");
         setPhone(data.phone || "");
@@ -192,6 +195,7 @@ export default function ProfilePage() {
       await updateProfile({
         name,
         skills,
+        achievements,
         career_interest: careerInterest,
         phone,
         linkedin_url: linkedinUrl,
@@ -347,6 +351,63 @@ export default function ProfilePage() {
         <div className="bg-white rounded-xl border border-[#E5E7EB] p-5">
           <h2 className="text-sm font-semibold text-[#14213D] mb-3">Skills</h2>
           <SkillTagInput skills={skills} onChange={setSkills} />
+        </div>
+
+        {/* Achievements */}
+        <div className="bg-white rounded-xl border border-[#E5E7EB] p-5">
+          <h2 className="text-sm font-semibold text-[#14213D] mb-1">Achievements</h2>
+          <p className="text-xs text-[#6B7280] mb-3">
+            Hackathon wins, competition rankings, scholarships, notable recognitions.
+          </p>
+
+          {achievements.length > 0 && (
+            <div className="space-y-2 mb-3">
+              {achievements.map((a, i) => (
+                <div
+                  key={i}
+                  className="flex items-start justify-between gap-2 px-3 py-2 bg-[#F7F8FA] rounded-lg text-sm text-[#14213D]"
+                >
+                  <span>{a}</span>
+                  <button
+                    type="button"
+                    onClick={() => setAchievements(achievements.filter((_, idx) => idx !== i))}
+                    className="text-xs text-[#E63946] hover:underline shrink-0"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={achievementInput}
+              onChange={(e) => setAchievementInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && achievementInput.trim()) {
+                  e.preventDefault();
+                  setAchievements([...achievements, achievementInput.trim()]);
+                  setAchievementInput("");
+                }
+              }}
+              placeholder="e.g. Won 1st place at XYZ Hackathon 2025"
+              className="flex-1 px-3 py-2 border border-[#E5E7EB] rounded-lg text-sm text-[#14213D] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#14213D]"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                if (achievementInput.trim()) {
+                  setAchievements([...achievements, achievementInput.trim()]);
+                  setAchievementInput("");
+                }
+              }}
+              className="px-3 py-2 text-sm font-medium text-[#14213D] border border-[#14213D] rounded-lg hover:bg-[#14213D] hover:text-white transition-colors"
+            >
+              Add
+            </button>
+          </div>
         </div>
 
         {/* Projects */}

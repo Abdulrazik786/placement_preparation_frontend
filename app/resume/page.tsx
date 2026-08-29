@@ -12,10 +12,16 @@ import {
   updateGeneratedResume,
   downloadResumeExport,
   listJobs,
+  getResumeTemplates,
+  improveResumeForAts,
+  updateImprovedResume,
+  downloadImprovedResume,
   Resume,
   ResumeAnalysis,
   GeneratedResume,
   JobPosting,
+  ResumeTemplate,
+  ImprovedResume,
 } from "@/lib/api";
 
 function ScoreRing({ score }: { score: number }) {
@@ -86,6 +92,17 @@ export default function ResumePage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [savedEdit, setSavedEdit] = useState(false);
   const [downloading, setDownloading] = useState<"pdf" | "docx" | null>(null);
+  const [templates, setTemplates] = useState<Record<string, ResumeTemplate>>({});
+  const [selectedTemplate, setSelectedTemplate] = useState("modern");
+
+  // Improve-for-ATS state
+  const [improving, setImproving] = useState(false);
+  const [improvedResume, setImprovedResume] = useState<ImprovedResume | null>(null);
+  const [improvedEditedText, setImprovedEditedText] = useState("");
+  const [improvedSavingEdit, setImprovedSavingEdit] = useState(false);
+  const [improvedSavedEdit, setImprovedSavedEdit] = useState(false);
+  const [improvedTemplate, setImprovedTemplate] = useState("modern");
+  const [improvedDownloading, setImprovedDownloading] = useState<"pdf" | "docx" | null>(null);
 
   useEffect(() => {
     if (!getToken()) {
@@ -94,6 +111,7 @@ export default function ResumePage() {
     }
     loadResumes();
     listJobs().catch(() => {}).then((data) => data && setJobs(data));
+    getResumeTemplates().catch(() => {}).then((data) => data && setTemplates(data));
   }, [router]);
 
   async function loadResumes() {
@@ -182,11 +200,56 @@ export default function ResumePage() {
     try {
       // Downloads always reflect the last SAVED version - if you've edited the text,
       // save it first so the download matches what you see in the editor.
-      await downloadResumeExport("generated", generatedResume.id, format);
+      await downloadResumeExport("generated", generatedResume.id, format, selectedTemplate);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Download failed");
     } finally {
       setDownloading(null);
+    }
+  }
+
+  async function handleImproveForAts(resumeId: number) {
+    setError(null);
+    setImproving(true);
+    setImprovedResume(null);
+    try {
+      const result = await improveResumeForAts(resumeId);
+      setImprovedResume(result);
+      setImprovedEditedText(result.resume_text);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to improve resume");
+    } finally {
+      setImproving(false);
+    }
+  }
+
+  async function handleSaveImprovedEdit() {
+    if (!improvedResume) return;
+    setError(null);
+    setImprovedSavingEdit(true);
+    setImprovedSavedEdit(false);
+    try {
+      const updated = await updateImprovedResume(improvedResume.id, improvedEditedText);
+      setImprovedResume(updated);
+      setImprovedSavedEdit(true);
+      setTimeout(() => setImprovedSavedEdit(false), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save changes");
+    } finally {
+      setImprovedSavingEdit(false);
+    }
+  }
+
+  async function handleDownloadImproved(format: "pdf" | "docx") {
+    if (!improvedResume) return;
+    setError(null);
+    setImprovedDownloading(format);
+    try {
+      await downloadImprovedResume(improvedResume.id, format, improvedTemplate);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Download failed");
+    } finally {
+      setImprovedDownloading(null);
     }
   }
 
@@ -302,6 +365,127 @@ export default function ResumePage() {
                 <TagList items={analysis.formatting_issues} tone="bad" />
               </div>
             </div>
+
+            {(analysis.weaknesses.length > 0 ||
+              analysis.missing_sections.length > 0 ||
+              analysis.formatting_issues.length > 0) &&
+              selectedResumeId && (
+                <button
+                  onClick={() => handleImproveForAts(selectedResumeId)}
+                  disabled={improving}
+                  className="mt-5 w-full bg-[#FFB703] text-[#14213D] text-sm font-semibold py-2.5 rounded-lg hover:bg-[#FFC933] transition-colors disabled:opacity-60"
+                >
+                  {improving ? "Fixing formatting..." : "🔧 Fix formatting to improve ATS score"}
+                </button>
+              )}
+          </div>
+        )}
+
+        {/* Improved (ATS-fixed) resume results */}
+        {improvedResume && (
+          <div className="bg-white rounded-xl border border-[#E5E7EB] p-6 mt-6">
+            <h2 className="text-sm font-semibold text-[#14213D] mb-3">ATS-fixed resume</h2>
+
+            <div className="flex items-center gap-6 mb-5">
+              <div className="text-center">
+                <p className="text-xs text-[#6B7280] mb-1">Before</p>
+                <p className="text-2xl font-bold text-[#6B7280]" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                  {improvedResume.ats_score_before}
+                </p>
+              </div>
+              <span className="text-2xl text-[#D1D5DB]">→</span>
+              <div className="text-center">
+                <p className="text-xs text-[#6B7280] mb-1">After</p>
+                <p
+                  className={`text-2xl font-bold ${
+                    improvedResume.ats_score_after > improvedResume.ats_score_before
+                      ? "text-[#2A9D8F]"
+                      : "text-[#14213D]"
+                  }`}
+                  style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+                >
+                  {improvedResume.ats_score_after}
+                </p>
+              </div>
+              {improvedResume.ats_score_after > improvedResume.ats_score_before && (
+                <span className="text-sm font-medium text-[#2A9D8F]">
+                  +{improvedResume.ats_score_after - improvedResume.ats_score_before} points
+                </span>
+              )}
+            </div>
+
+            {improvedResume.changes_summary.length > 0 && (
+              <div className="mb-5">
+                <h3 className="text-xs font-semibold text-[#6B7280] uppercase tracking-wide mb-2">
+                  What was fixed
+                </h3>
+                <ul className="space-y-1">
+                  {improvedResume.changes_summary.map((c, i) => (
+                    <li key={i} className="text-sm text-[#14213D] flex gap-2">
+                      <span className="text-[#2A9D8F]">✓</span>
+                      <span>{c}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-semibold text-[#6B7280] uppercase tracking-wide">
+                Edit before downloading
+              </label>
+              {improvedSavedEdit && <span className="text-xs text-[#2A9D8F] font-medium">Saved ✓</span>}
+            </div>
+            <textarea
+              value={improvedEditedText}
+              onChange={(e) => setImprovedEditedText(e.target.value)}
+              rows={16}
+              className="w-full px-3 py-3 border border-[#E5E7EB] rounded-lg text-sm text-[#14213D] font-mono focus:outline-none focus:ring-2 focus:ring-[#14213D]"
+            />
+
+            <label className="block text-xs font-semibold text-[#6B7280] uppercase tracking-wide mt-4 mb-2">
+              Choose a template
+            </label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+              {Object.entries(templates).map(([key, t]) => (
+                <button
+                  key={key}
+                  onClick={() => setImprovedTemplate(key)}
+                  className={`text-left px-3 py-2.5 rounded-lg border transition-colors ${
+                    improvedTemplate === key
+                      ? "border-[#14213D] bg-[#F7F8FA]"
+                      : "border-[#E5E7EB] hover:border-[#9CA3AF]"
+                  }`}
+                >
+                  <p className="text-sm font-medium text-[#14213D]">{t.label}</p>
+                  <p className="text-[11px] text-[#6B7280]">{t.description}</p>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={handleSaveImprovedEdit}
+                disabled={improvedSavingEdit}
+                className="text-sm font-medium text-[#14213D] border border-[#14213D] px-4 py-2 rounded-lg hover:bg-[#14213D] hover:text-white transition-colors disabled:opacity-50"
+              >
+                {improvedSavingEdit ? "Saving..." : "Save changes"}
+              </button>
+              <button
+                onClick={() => handleDownloadImproved("pdf")}
+                disabled={improvedDownloading !== null}
+                className="text-sm font-medium text-white bg-[#FFB703] px-4 py-2 rounded-lg hover:bg-[#FFC933] transition-colors disabled:opacity-50"
+              >
+                {improvedDownloading === "pdf" ? "Downloading..." : "Download PDF"}
+              </button>
+              <button
+                onClick={() => handleDownloadImproved("docx")}
+                disabled={improvedDownloading !== null}
+                className="text-sm font-medium text-white bg-[#FFB703] px-4 py-2 rounded-lg hover:bg-[#FFC933] transition-colors disabled:opacity-50"
+              >
+                {improvedDownloading === "docx" ? "Downloading..." : "Download DOCX"}
+              </button>
+            </div>
           </div>
         )}
 
@@ -348,7 +532,28 @@ export default function ResumePage() {
                 rows={16}
                 className="w-full px-3 py-3 border border-[#E5E7EB] rounded-lg text-sm text-[#14213D] font-mono focus:outline-none focus:ring-2 focus:ring-[#14213D]"
               />
-              <div className="flex flex-wrap gap-2 mt-3">
+
+              <label className="block text-xs font-semibold text-[#6B7280] uppercase tracking-wide mt-4 mb-2">
+                Choose a template
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+                {Object.entries(templates).map(([key, t]) => (
+                  <button
+                    key={key}
+                    onClick={() => setSelectedTemplate(key)}
+                    className={`text-left px-3 py-2.5 rounded-lg border transition-colors ${
+                      selectedTemplate === key
+                        ? "border-[#14213D] bg-[#F7F8FA]"
+                        : "border-[#E5E7EB] hover:border-[#9CA3AF]"
+                    }`}
+                  >
+                    <p className="text-sm font-medium text-[#14213D]">{t.label}</p>
+                    <p className="text-[11px] text-[#6B7280]">{t.description}</p>
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap gap-2 mt-1">
                 <button
                   onClick={handleSaveEdit}
                   disabled={savingEdit}
